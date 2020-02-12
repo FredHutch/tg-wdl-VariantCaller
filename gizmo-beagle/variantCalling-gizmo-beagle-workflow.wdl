@@ -13,7 +13,8 @@
 ## 
 workflow Panel_BWA_GATK4_Annovar {
   # Batch File import
-  String batchFile
+  File batchFile
+  Array[Object] batchInfo = read_objects(batchFile)
 
   # Reference Data
   String ref_name
@@ -46,13 +47,6 @@ workflow Panel_BWA_GATK4_Annovar {
   String perlModule
   String bwaModule
 
-call fetchS3Input as batchFileInput {
-  input:
-    s3Input = batchFile,
-    modules = awscliModule
-}
-
-Array[Object] batchInfo = read_objects(batchFileInput.file)
 
 scatter (job in batchInfo){
   String sampleName = job.sampleName
@@ -62,32 +56,19 @@ scatter (job in batchInfo){
   # Get the basename, i.e. strip the filepath and the extension
   String bam_basename = basename(bamLocation, ".unmapped.bam")
   String base_file_name = sampleName + "." + ref_name
-  
-  # get S3 inputs
-  call fetchS3Input as bedFile {
-    input:
-      s3Input = bedLocation,
-      modules = awscliModule
-  }
 
-  # get S3 inputs
-  call fetchS3Input as sampleBam {
-    input:
-      s3Input = bamLocation,
-      modules = awscliModule
-  }
 
   # Prepare bed file and check sorting
   call SortBed {
     input:
-      unsorted_bed = bedFile.file,
+      unsorted_bed = bedLocation,
       ref_dict = ref_dict,
       modules = GATKModule
   }
   # convert unmapped bam to fastq
   call SamToFastq {
     input:
-      input_bam = sampleBam.file,
+      input_bam = bamLocation,
       base_file_name = base_file_name,
       modules = GATKModule
   }
@@ -178,21 +159,7 @@ scatter (job in batchInfo){
 }
 
 # TASK DEFINITIONS
-task fetchS3Input {
-  String s3Input
-  String modules
-  String inputBasename = basename(s3Input)
-  command {
-    set -eo pipefail
-    aws s3 cp ${s3Input} ${inputBasename}
-  }
-  runtime {
-    modules: "${modules}"
-  }
-  output {
-    File file = "${inputBasename}"
-  }
-}
+
 # Prepare bed file and check sorting
 task SortBed {
   File unsorted_bed
