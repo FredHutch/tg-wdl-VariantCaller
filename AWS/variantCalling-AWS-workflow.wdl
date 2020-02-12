@@ -10,12 +10,6 @@
 ## - recalibrated bam and it's index and md5
 ## - GATK vcf
 ## - Annovar annotated vcfs and tabular file
-## 
-## Software version requirements (see recommended dockers in inputs JSON)
-## - GATK 4 or later (see gatk docker)
-## - Picard (see gotc docker)
-## - Samtools (see gotc docker)
-##
 workflow Panel_BWA_GATK4_Annovar {
   # Batch File import
   File batchFile
@@ -144,8 +138,8 @@ scatter (job in batchInfo){
     Array[File] analysis_ready_bam = ApplyBaseRecalibrator.recalibrated_bam 
     Array[File] analysis_ready_bai = ApplyBaseRecalibrator.recalibrated_bai
     Array[File] GATK_vcf = HaplotypeCaller.output_vcf
-    Array[File] annotated_vcf = annovarConsensus.output_annotated_vcf
-    Array[File] annotated_table = annovarConsensus.output_annotated_table
+    Array[File] annotated_vcf = annovar.output_annotated_vcf
+    Array[File] annotated_table = annovar.output_annotated_table
   }
 # End workflow
 }
@@ -283,7 +277,7 @@ task ApplyBaseRecalibrator {
   File ref_dict
   File ref_fasta
   File ref_fasta_index
-  Int memoryMultiplier
+
   command {
   set -eo pipefail
   gatk --java-options "-Xms4g" \
@@ -327,7 +321,7 @@ task HaplotypeCaller {
   File input_bam
   File input_bam_index
   String base_file_name
-  File bed_file
+  File intervals
   File ref_dict
   File ref_fasta
   File ref_fasta_index
