@@ -21,5 +21,11 @@
   ],
   "Panel_BWA_GATK4_Annovar.annovarTAR": "s3://fh-ctr-public-reference-data/tool_specific_data/annovar/2018Apr16-ANNOVAR-2019Jan15-hg38humandb.tar.gz",
   "Panel_BWA_GATK4_Annovar.annovar_protocols": "refGene,knownGene,dbnsfp35c,cosmic70,esp6500siv2_all,exac03,exac03nontcga,avsnp150,clinvar_20180603",
-  "Panel_BWA_GATK4_Annovar.annovar_operation": "g,f,f,f,f,f,f,f,f"
+  "Panel_BWA_GATK4_Annovar.annovar_operation": "g,f,f,f,f,f,f,f,f",
+  "Panel_BWA_GATK4_Annovar.annovarDIR": "/fh/fast/paguirigan_a/pub/ReferenceDataSets/tool_specific_data/annovar/2018Apr16-ANNOVAR-2019Sep11-hg19humandb",
+  "Panel_BWA_GATK4_Annovar.annovar_protocols": "refGene,knownGene,dbnsfp35c,cosmic70,esp6500siv2_all,exac03,exac03nontcga,avsnp150,clinvar_20180603,gnomad211_exome",
+  "Panel_BWA_GATK4_Annovar.annovar_operation": "g,f,f,f,f,f,f,f,f,f",
+  "Panel_BWA_GATK4_Annovar.GATKDocker": "broadinstitute/gatk:4.1.0.0",
+  "Panel_BWA_GATK4_Annovar.perlDocker": "perl:5.28.0",
+  "Panel_BWA_GATK4_Annovar.bwaDocker": "fredhutch/bwa:0.7.17"
 }

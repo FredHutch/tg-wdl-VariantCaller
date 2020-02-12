@@ -49,7 +49,7 @@ workflow Panel_BWA_GATK4_Annovar {
 call fetchS3Input as batchFileInput {
   input:
     s3Input = batchFile,
-    awscliModule = awscliModule
+    modules = awscliModule
 }
 
 Array[Object] batchInfo = read_objects(batchFileInput.file)
@@ -67,14 +67,14 @@ scatter (job in batchInfo){
   call fetchS3Input as bedFile {
     input:
       s3Input = bedLocation,
-      awscliModule = awscliModule
+      modules = awscliModule
   }
 
   # get S3 inputs
   call fetchS3Input as sampleBam {
     input:
       s3Input = bamLocation,
-      awscliModule = awscliModule
+      modules = awscliModule
   }
 
   # Prepare bed file and check sorting
@@ -82,14 +82,14 @@ scatter (job in batchInfo){
     input:
       unsorted_bed = bedFile.file,
       ref_dict = ref_dict,
-      GATKModule = GATKModule
+      modules = GATKModule
   }
   # convert unmapped bam to fastq
   call SamToFastq {
     input:
       input_bam = sampleBam.file,
       base_file_name = base_file_name,
-      GATKModule = GATKModule
+      modules = GATKModule
   }
 
 #  Map reads to reference
@@ -106,8 +106,7 @@ scatter (job in batchInfo){
       ref_bwt = ref_bwt,
       ref_pac = ref_pac,
       ref_sa = ref_sa,
-      bwaModule = bwaModule,
-      samtoolsModule = samtoolsModule
+      modules = bwaModule + " " + samtoolsModule
   }
 
   # Merge original uBAM and BWA-aligned BAM
@@ -119,7 +118,7 @@ scatter (job in batchInfo){
       ref_fasta = ref_fasta,
       ref_fasta_index = ref_fasta_index,
       ref_dict = ref_dict,
-      GATKModule = GATKModule
+      modules = GATKModule
   }
 
   # Generate the recalibration model by interval
@@ -136,8 +135,7 @@ scatter (job in batchInfo){
       ref_dict = ref_dict,
       ref_fasta = ref_fasta,
       ref_fasta_index = ref_fasta_index,
-      samtoolsModule = samtoolsModule,
-      GATKModule = GATKModule
+      modules = bwaModule + " " + samtoolsModule
     }
 
     # Generate haplotype caller vcf
@@ -151,7 +149,7 @@ scatter (job in batchInfo){
         ref_fasta = ref_fasta,
         ref_fasta_index = ref_fasta_index,
         dbSNP_vcf = dbSNP_vcf,
-        GATKModule = GATKModule
+        modules = GATKModule
     }
 
     # Annotate variants
@@ -163,7 +161,7 @@ scatter (job in batchInfo){
         annovar_operation = annovar_operation,
         annovar_protocols = annovar_protocols,
         annovarDIR = annovarDIR,
-        perlModule = perlModule
+        modules = perlModule
     }
 
   # End scatter 
@@ -182,14 +180,14 @@ scatter (job in batchInfo){
 # TASK DEFINITIONS
 task fetchS3Input {
   String s3Input
-  String awscliModule
+  String modules
   String inputBasename = basename(s3Input)
   command {
     set -eo pipefail
-    module load ${awscliModule}
     aws s3 cp ${s3Input} ${inputBasename}
   }
   runtime {
+    modules: "${modules}"
   }
   output {
     File file = "${inputBasename}"
@@ -199,13 +197,13 @@ task fetchS3Input {
 task SortBed {
   File unsorted_bed
   File ref_dict
-  String GATKModule
+  String modules
   command {
     set -eo pipefail
 
     echo "Sort bed file"
     sort -k1,1V -k2,2n -k3,3n ${unsorted_bed} > sorted.bed
-    module load ${GATKModule}
+
     echo "Transform bed file to intervals list with Picard----------------------------------------"
     gatk --java-options "-Xms4g" \
       BedToIntervalList \
@@ -214,6 +212,7 @@ task SortBed {
       -SD=${ref_dict}
   }
   runtime {
+    modules: "${modules}"
   }
   output {
     File intervals = "sorted.interval_list"
@@ -224,11 +223,11 @@ task SortBed {
 task SamToFastq {
   File input_bam
   String base_file_name
-  String GATKModule
+  String modules
 
   command {
     set -eo pipefail
-    module load ${GATKModule}
+
     gatk --java-options "-Dsamjdk.compression_level=5 -Xms4g" \
       SamToFastq \
 			--INPUT=${input_bam} \
@@ -237,6 +236,7 @@ task SamToFastq {
 			--INCLUDE_NON_PF_READS=true 
   }
   runtime {
+    modules: "${modules}"
     memory: 6000
     cpu: 2
     partition: "campus"
@@ -259,19 +259,18 @@ task BwaMem {
   File ref_bwt
   File ref_pac
   File ref_sa
-  String bwaModule
-  String samtoolsModule
+  String modules
 
   command {
     set -eo pipefail
-    module load ${bwaModule}
-    module load ${samtoolsModule}
+
     bwa mem \
       -p -v 3 -t 16 -M \
       ${ref_fasta} ${input_fastq} > ${base_file_name}.sam 
     samtools view -1bS -@ 15 -o ${base_file_name}.aligned.bam ${base_file_name}.sam
   }
   runtime {
+    modules: "${modules}"
     memory: 48000
     cpu: 16
     partition: "largenode"
@@ -290,10 +289,10 @@ task MergeBamAlignment {
   File ref_fasta
   File ref_fasta_index
   File ref_dict
-  String GATKModule
+  String modules
   command {
     set -eo pipefail
-    module load ${GATKModule}
+
     gatk --java-options "-Dsamjdk.compression_level=5 -XX:-UseGCOverheadLimit -Xmx8g" \
       MergeBamAlignment \
       --VALIDATION_STRINGENCY SILENT \
@@ -317,6 +316,7 @@ task MergeBamAlignment {
       --CREATE_INDEX true
   }
   runtime {
+    modules: "${modules}"
     memory: 16000
   }
   output {
@@ -338,14 +338,12 @@ task ApplyBaseRecalibrator {
   File ref_dict
   File ref_fasta
   File ref_fasta_index
-  String samtoolsModule
-  String GATKModule
+  String modules
   command {
   set -eo pipefail
-  module load ${samtoolsModule}
+
   samtools index ${input_bam}
   
-  module load ${GATKModule}
   gatk --java-options "-Xms4g" \
       BaseRecalibrator \
       -R ${ref_fasta} \
@@ -365,12 +363,12 @@ task ApplyBaseRecalibrator {
       --intervals ${intervals} \
       --interval-padding 100 
 
-  module load ${samtoolsModule}
   #finds the current sort order of this bam file
   samtools view -H ${base_file_name}.recal.bam | grep @SQ | sed 's/@SQ\tSN:\|LN://g' > ${base_file_name}.sortOrder.txt
 
   }
   runtime {
+    modules: "${modules}"
     memory: 23000
     cpu: 6
     partition: "largenode"
@@ -393,11 +391,11 @@ task HaplotypeCaller {
   File ref_fasta
   File ref_fasta_index
   File dbSNP_vcf
-  String GATKModule
+  String modules
 
   command {
     set -eo pipefail
-    module load ${GATKModule}
+
     gatk --java-options "-Xmx4g" \
       HaplotypeCaller \
       -R ${ref_fasta} \
@@ -408,6 +406,7 @@ task HaplotypeCaller {
     }
 
   runtime {
+    modules: "${modules}"
     memory: 30000
     cpu: 4
   }
@@ -427,12 +426,11 @@ task annovar {
   String annovar_protocols
   String annovar_operation
   String annovarDIR
-  String perlModule
+  String modules
   String base_vcf_name = basename(input_vcf, ".vcf")
   
   command {
   set -eo pipefail
-  module load ${perlModule}
   
   perl ${annovarDIR}/annovar/table_annovar.pl ${input_vcf} ${annovarDIR}/annovar/humandb/ \
     -buildver ${ref_name} \
@@ -444,6 +442,7 @@ task annovar {
   }
 
   runtime {
+    modules: "${modules}"
   }
 
   output {

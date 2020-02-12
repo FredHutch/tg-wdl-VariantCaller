@@ -39,6 +39,11 @@ workflow Panel_BWA_GATK4_Annovar {
   String annovar_protocols
   String annovar_operation
 
+  # Docker containers
+  String GATKDocker
+  String perlDocker
+  String bwaDocker
+
 
 scatter (job in batchInfo){
   String sampleName = job.sampleName
@@ -53,14 +58,16 @@ scatter (job in batchInfo){
   call SortBed {
     input:
       unsorted_bed = bedLocation,
-      ref_dict = ref_dict
+      ref_dict = ref_dict,
+      docker = GATKDocker
   }
 
 # convert unmapped bam to fastq
   call SamToFastq {
     input:
       input_bam = bamLocation,
-      base_file_name = base_file_name
+      base_file_name = base_file_name,
+      docker = GATKDocker
   }
 
 #  Map reads to reference
@@ -76,7 +83,8 @@ scatter (job in batchInfo){
       ref_ann = ref_ann,
       ref_bwt = ref_bwt,
       ref_pac = ref_pac,
-      ref_sa = ref_sa
+      ref_sa = ref_sa,
+      docker = bwaDocker
   }
 
   # Merge original uBAM and BWA-aligned BAM
@@ -87,7 +95,8 @@ scatter (job in batchInfo){
       base_file_name = base_file_name,
       ref_fasta = ref_fasta,
       ref_fasta_index = ref_fasta_index,
-      ref_dict = ref_dict
+      ref_dict = ref_dict,
+      docker = GATKDocker
   }
 
 
@@ -104,7 +113,8 @@ scatter (job in batchInfo){
       known_indels_sites_indices = known_indels_sites_indices,
       ref_dict = ref_dict,
       ref_fasta = ref_fasta,
-      ref_fasta_index = ref_fasta_index
+      ref_fasta_index = ref_fasta_index,
+      docker = GATKDocker
     }
 
     # Generate haplotype caller vcf
@@ -117,7 +127,8 @@ scatter (job in batchInfo){
         ref_dict = ref_dict,
         ref_fasta = ref_fasta,
         ref_fasta_index = ref_fasta_index,
-        dbSNP_vcf = dbSNP_vcf
+        dbSNP_vcf = dbSNP_vcf,
+        docker = GATKDocker
     }
 
     # Annotate variants
@@ -128,7 +139,8 @@ scatter (job in batchInfo){
         base_file_name = base_file_name,
         annovarTAR = annovarTAR,
         annovar_operation = annovar_operation,
-        annovar_protocols = annovar_protocols
+        annovar_protocols = annovar_protocols,
+        docker = perlDocker
     }
 
   # End scatter 
@@ -149,6 +161,7 @@ scatter (job in batchInfo){
 task SortBed {
   File unsorted_bed
   File ref_dict
+  String docker
   command {
     set -eo pipefail
 
@@ -163,7 +176,7 @@ task SortBed {
       -SD=${ref_dict}
   }
   runtime {
-    docker: "broadinstitute/gatk:4.1.0.0"
+    docker: "${docker}"
     memory: "4GB"
     cpu: "2"
   }
@@ -177,6 +190,7 @@ task SortBed {
 task SamToFastq {
   File input_bam
   String base_file_name
+  String docker
 
   command {
     set -eo pipefail
@@ -188,7 +202,7 @@ task SamToFastq {
 			--INCLUDE_NON_PF_READS=true 
   }
   runtime {
-    docker: "broadinstitute/gatk:4.1.0.0"
+    docker: "${docker}"
     memory: "4GB"
     cpu: "4"
   }
@@ -210,6 +224,7 @@ task BwaMem {
   File ref_bwt
   File ref_pac
   File ref_sa
+  String docker
 
   command {
     set -eo pipefail
@@ -219,7 +234,7 @@ task BwaMem {
 
   }
   runtime {
-    docker: "fredhutch/bwa:0.7.17"
+    docker: "${docker}"
     memory: "8 GB"
     cpu: "4"
   }
@@ -237,6 +252,7 @@ task MergeBamAlignment {
   File ref_fasta
   File ref_fasta_index
   File ref_dict
+  String docker
 
   command {
     set -eo pipefail
@@ -253,7 +269,7 @@ task MergeBamAlignment {
      --MAX_RECORDS_IN_RAM 2000000
   }
   runtime {
-    docker: "broadinstitute/gatk:4.1.0.0"
+    docker: "${docker}"
     memory: "8G"
     cpu: "1"
   }
@@ -277,6 +293,7 @@ task ApplyBaseRecalibrator {
   File ref_dict
   File ref_fasta
   File ref_fasta_index
+  String docker
 
   command {
   set -eo pipefail
@@ -304,7 +321,7 @@ task ApplyBaseRecalibrator {
   samtools view -H ${base_file_name}.recal.bam|grep @SQ|sed 's/@SQ\tSN:\|LN://g' > ${base_file_name}.sortOrder.txt
   }
   runtime {
-    docker: "broadinstitute/gatk:4.1.0.0"
+    docker: "${docker}"
     memory: "4 GB"
     cpu: "4"
   }
@@ -326,6 +343,7 @@ task HaplotypeCaller {
   File ref_fasta
   File ref_fasta_index
   File dbSNP_vcf
+  String docker
 
   command {
     set -eo pipefail
@@ -339,7 +357,7 @@ task HaplotypeCaller {
     }
 
   runtime {
-    docker: "broadinstitute/gatk:4.1.0.0"
+    docker: "${docker}"
     memory: "8G"
     cpu: "2"
   }
@@ -359,6 +377,7 @@ task annovar {
   File annovarTAR
   String annovar_protocols
   String annovar_operation
+  String docker
 
   String base_vcf_name = basename(input_vcf, ".vcf")
 
@@ -378,7 +397,7 @@ task annovar {
   }
 
   runtime {
-    docker: "perl:5.28.0"
+    docker: "${docker}"
     memory: "4G"
     cpu: "1"
   }
