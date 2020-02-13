@@ -116,7 +116,7 @@ scatter (job in batchInfo){
       ref_dict = ref_dict,
       ref_fasta = ref_fasta,
       ref_fasta_index = ref_fasta_index,
-      modules = bwaModule + " " + samtoolsModule
+      modules = GATKModule + " " + samtoolsModule
     }
 
     # Generate haplotype caller vcf
@@ -380,7 +380,7 @@ task HaplotypeCaller {
 
   output {
     File output_vcf = "${base_file_name}.GATK.vcf"
-    File output_vcf_index = "${base_file_name}.GATK.vcf.tbi"
+    File output_vcf_index = "${base_file_name}.GATK.vcf.idx"
   }
 }
 
