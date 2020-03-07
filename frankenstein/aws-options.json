@@ -1,0 +1,11 @@
+{
+    "backend": "aws",
+    "workflow_failure_mode": "NoNewCalls",
+    "default_runtime_attributes": {
+        "maxRetries": 3
+    },
+    "write_to_cache": true,
+    "read_from_cache": true,
+    "workflow-log-dir": "s3://fh-pi-paguirigan-a-genomicsrepo/cromwell-workflow-logs",
+    "final_workflow_outputs_dir": "s3://fh-pi-paguirigan-a-genomicsrepo/cromwell-results"
+}

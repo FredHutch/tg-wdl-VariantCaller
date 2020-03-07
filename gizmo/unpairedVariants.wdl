@@ -13,8 +13,7 @@
 ## 
 workflow Panel_BWA_GATK4_Annovar {
   # Batch File import
-  File batchFile
-  Array[Object] batchInfo = read_objects(batchFile)
+  String batchFile
 
   # Reference Data
   String ref_name
@@ -36,7 +35,7 @@ workflow Panel_BWA_GATK4_Annovar {
   Array[File] known_indels_sites_indices
 
   # Annovar specific variables
-  File annovarDIR
+  String annovarDIR
   String annovar_protocols
   String annovar_operation
 
@@ -47,6 +46,16 @@ workflow Panel_BWA_GATK4_Annovar {
   String perlModule
   String bwaModule
 
+  # Task level runtime variables
+  Int bwaThreads
+
+
+call fetchS3Input as fetchBatch {
+  input:
+    s3Input = s3batchFile,
+    modules = awscliModule
+}
+  Array[Object] batchInfo = read_objects(fetchBatch.file)
 
 scatter (job in batchInfo){
   String sampleName = job.sampleName
@@ -87,7 +96,8 @@ scatter (job in batchInfo){
       ref_bwt = ref_bwt,
       ref_pac = ref_pac,
       ref_sa = ref_sa,
-      modules = bwaModule + " " + samtoolsModule
+      modules = bwaModule + " " + samtoolsModule,
+      threads = bwaThreads
   }
 
   # Merge original uBAM and BWA-aligned BAM
@@ -159,6 +169,21 @@ scatter (job in batchInfo){
 }
 
 # TASK DEFINITIONS
+task fetchS3Input {
+  String s3Input
+  String inputBasename = basename(s3Input)
+  String modules
+  command {
+    set -eo pipefail
+    aws s3 cp ${s3Input} ${inputBasename}
+  }
+  runtime {
+    modules: "${modules}"
+  }
+  output {
+    File file = "${inputBasename}"
+  }
+}
 
 # Prepare bed file and check sorting
 task SortBed {
@@ -204,7 +229,7 @@ task SamToFastq {
   }
   runtime {
     modules: "${modules}"
-    memory: 6000
+    memory: "6 GB"
     cpu: 2
     partition: "campus"
   }
@@ -227,19 +252,20 @@ task BwaMem {
   File ref_pac
   File ref_sa
   String modules
+  Int threads
 
   command {
     set -eo pipefail
 
     bwa mem \
-      -p -v 3 -t 16 -M \
+      -p -v 3 -t ${threads} -M \
       ${ref_fasta} ${input_fastq} > ${base_file_name}.sam 
-    samtools view -1bS -@ 15 -o ${base_file_name}.aligned.bam ${base_file_name}.sam
+    samtools view -1bS -@ "${threads}-1" -o ${base_file_name}.aligned.bam ${base_file_name}.sam
   }
   runtime {
     modules: "${modules}"
-    memory: 48000
-    cpu: 16
+    memory: "48G"
+    cpu: "${threads}"
     partition: "largenode"
   }
   output {
@@ -284,7 +310,8 @@ task MergeBamAlignment {
   }
   runtime {
     modules: "${modules}"
-    memory: 16000
+    memory: "8G"
+    cpu: "1"
   }
   output {
     File output_bam = "${base_file_name}.merged.bam"
@@ -336,8 +363,8 @@ task ApplyBaseRecalibrator {
   }
   runtime {
     modules: "${modules}"
-    memory: 23000
-    cpu: 6
+    memory: "33G"
+    cpu: "6"
     partition: "largenode"
   }
   output {
@@ -374,8 +401,9 @@ task HaplotypeCaller {
 
   runtime {
     modules: "${modules}"
-    memory: 30000
-    cpu: 4
+    memory: "30G"
+    cpu: "6"
+    partition: "largenode"
   }
 
   output {
