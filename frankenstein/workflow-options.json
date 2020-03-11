@@ -1,9 +1,0 @@
-{
-    "##workflow_failure_mode": "##ContinueWhilePossible",
-    "workflow_failure_mode": "NoNewCalls",
-    "default_runtime_attributes": {
-        "maxRetries": 1
-        },
-    "write_to_cache": true,
-    "read_from_cache": true
-}

@@ -1,7 +1,0 @@
-{
-  "backend": "aws",
-  "workflow_failure_mode": "ContinueWhilePossible",
-  "default_runtime_attributes": {
-        "maxRetries": 1
-    }
-}

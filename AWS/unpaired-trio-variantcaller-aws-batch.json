@@ -1,0 +1,4 @@
+{
+  "##PARAMBatch": "Batch File Manifest",
+  "Panel_BWA_HC_Mutect_Samtools_AnnotatedVariants.batchFile": "s3://fh-pi-paguirigan-a-genomicsrepo/cromwell-manifests/FredHutch/tg-wdl-unpairedVariantCaller/2020-03-09-HALOValidation.tsv"
+  }
