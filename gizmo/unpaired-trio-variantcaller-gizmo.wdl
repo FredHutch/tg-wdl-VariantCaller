@@ -37,7 +37,7 @@ workflow Panel_BWA_HC_Mutect_Samtools_AnnotatedVariants {
   File af_only_gnomad
   File af_only_gnomad_index
   # Note:  For Annovar, please reference: Wang K, Li M, Hakonarson H. ANNOVAR: Functional annotation of genetic variants from next-generation sequencing data Nucleic Acids Research, 38:e164, 2010
-  File annovarDIR
+  String annovarDIR
   String annovar_protocols
   String annovar_operation
 
@@ -60,7 +60,7 @@ workflow Panel_BWA_HC_Mutect_Samtools_AnnotatedVariants {
 
 call fetchS3Input as fetchBatch {
   input:
-    s3Input = s3batchFile,
+    s3Input = batchFile,
     modules = awscliModule
 }
 

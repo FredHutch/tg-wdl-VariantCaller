@@ -132,22 +132,6 @@ thisJob <- cromwellSubmitBatch(
 thisOne <- thisJob$id; thisOne
 ```
 
-### Gizmo workflow
-```{r}
-workflowFiles <- "./Workflows/tg-wdl-unpairedVariantCaller/gizmo/"
-list.files(path = workflowFiles)
-womtoolValidate(paste0(workflowFiles, "unpaired-trio-variantcaller-gizmo.wdl"))
-
-thisJob <- cromwellSubmitBatch(
-  WDL = paste0(workflowFiles, "unpaired-trio-variantcaller-gizmo.wdl"),
-  Batch = paste0(workflowFiles, "unpaired-trio-variantcaller-gizmo-batch.json"),
-  Params = paste0(workflowFiles, "unpaired-trio-variantcaller-gizmo-parameters.json"),
-  Options = paste0(workflowDir, "gizmo-options.json"),
-  Labels = data.frame("workflowType" = "triotesting"))
-
-thisOne <- thisJob$id; thisOne
-```
-
 # Monitor Running Jobs
 
 ## Attempts
