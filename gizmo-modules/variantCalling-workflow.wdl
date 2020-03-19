@@ -204,7 +204,7 @@ task SamToFastq {
   }
   runtime {
     modules: "${modules}"
-    memory: 6000
+    memory: "6GB"
     cpu: 2
     partition: "campus"
   }
@@ -238,7 +238,7 @@ task BwaMem {
   }
   runtime {
     modules: "${modules}"
-    memory: 48000
+    memory: "33GB"
     cpu: 16
     partition: "largenode"
   }
@@ -284,7 +284,8 @@ task MergeBamAlignment {
   }
   runtime {
     modules: "${modules}"
-    memory: 16000
+    memory: "16GB"
+    cpu: 4
   }
   output {
     File output_bam = "${base_file_name}.merged.bam"
@@ -336,7 +337,7 @@ task ApplyBaseRecalibrator {
   }
   runtime {
     modules: "${modules}"
-    memory: 23000
+    memory: "33GB"
     cpu: 6
     partition: "largenode"
   }
@@ -374,7 +375,7 @@ task HaplotypeCaller {
 
   runtime {
     modules: "${modules}"
-    memory: 30000
+    memory: "32GB"
     cpu: 4
   }
 
