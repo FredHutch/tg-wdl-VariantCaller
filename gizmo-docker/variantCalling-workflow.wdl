@@ -36,17 +36,18 @@ workflow Panel_BWA_GATK4_Annovar {
   Array[File] known_indels_sites_indices
 
   # Annovar specific variables
-  File annovarDIR
+  String annovarDIR
   String annovar_protocols
   String annovar_operation
 
-  # Gizmo Easybuild Modules
-  String awscliModule
-  String GATKModule
-  String samtoolsModule
-  String perlModule
-  String bwaModule
+  String GATKDocker = "broadinstitute/gatk:4.1.4.0"
+  String bwaDocker = "fredhutch/bwa:0.7.17"
+  String bedtoolsDocker = "fredhutch/bedtools:2.28.0" 
+  String bcftoolsDocker = "fredhutch/bcftools:1.9"
+  String perlDocker = "perl:5.28.0"
+  String RDocker = "rocker/tidyverse:3.6.0"
 
+Int bwaThreads = 16
 
 scatter (job in batchInfo){
   String sampleName = job.sampleName
@@ -63,14 +64,14 @@ scatter (job in batchInfo){
     input:
       unsorted_bed = bedLocation,
       ref_dict = ref_dict,
-      modules = GATKModule
+      docker = GATKDocker
   }
   # convert unmapped bam to fastq
   call SamToFastq {
     input:
       input_bam = bamLocation,
       base_file_name = base_file_name,
-      modules = GATKModule
+      docker = GATKDocker
   }
 
 #  Map reads to reference
@@ -87,7 +88,7 @@ scatter (job in batchInfo){
       ref_bwt = ref_bwt,
       ref_pac = ref_pac,
       ref_sa = ref_sa,
-      modules = bwaModule + " " + samtoolsModule
+      docker = bwaDocker
   }
 
   # Merge original uBAM and BWA-aligned BAM
@@ -99,7 +100,7 @@ scatter (job in batchInfo){
       ref_fasta = ref_fasta,
       ref_fasta_index = ref_fasta_index,
       ref_dict = ref_dict,
-      modules = GATKModule
+      docker = GATKDocker
   }
 
   # Generate the recalibration model by interval
@@ -116,7 +117,7 @@ scatter (job in batchInfo){
       ref_dict = ref_dict,
       ref_fasta = ref_fasta,
       ref_fasta_index = ref_fasta_index,
-      modules = GATKModule + " " + samtoolsModule
+      docker = GATKDocker
     }
 
     # Generate haplotype caller vcf
@@ -130,7 +131,7 @@ scatter (job in batchInfo){
         ref_fasta = ref_fasta,
         ref_fasta_index = ref_fasta_index,
         dbSNP_vcf = dbSNP_vcf,
-        modules = GATKModule
+        docker = GATKDocker
     }
 
     # Annotate variants
@@ -142,7 +143,7 @@ scatter (job in batchInfo){
         annovar_operation = annovar_operation,
         annovar_protocols = annovar_protocols,
         annovarDIR = annovarDIR,
-        modules = perlModule
+        docker = perlDocker
     }
 
   # End scatter 
@@ -164,7 +165,7 @@ scatter (job in batchInfo){
 task SortBed {
   File unsorted_bed
   File ref_dict
-  String modules
+  String docker
   command {
     set -eo pipefail
 
@@ -179,7 +180,7 @@ task SortBed {
       -SD=${ref_dict}
   }
   runtime {
-    modules: "${modules}"
+    docker: "${docker}"
   }
   output {
     File intervals = "sorted.interval_list"
@@ -190,7 +191,7 @@ task SortBed {
 task SamToFastq {
   File input_bam
   String base_file_name
-  String modules
+  String docker
 
   command {
     set -eo pipefail
@@ -203,7 +204,7 @@ task SamToFastq {
 			--INCLUDE_NON_PF_READS=true 
   }
   runtime {
-    modules: "${modules}"
+    docker: "${docker}"
     memory: "6GB"
     cpu: 2
     partition: "campus"
@@ -226,7 +227,7 @@ task BwaMem {
   File ref_bwt
   File ref_pac
   File ref_sa
-  String modules
+  String docker
 
   command {
     set -eo pipefail
@@ -237,7 +238,7 @@ task BwaMem {
     samtools view -1bS -@ 15 -o ${base_file_name}.aligned.bam ${base_file_name}.sam
   }
   runtime {
-    modules: "${modules}"
+    docker: "${docker}"
     memory: "33GB"
     cpu: 16
     partition: "largenode"
@@ -256,7 +257,7 @@ task MergeBamAlignment {
   File ref_fasta
   File ref_fasta_index
   File ref_dict
-  String modules
+  String docker
   command {
     set -eo pipefail
 
@@ -283,7 +284,7 @@ task MergeBamAlignment {
       --CREATE_INDEX true
   }
   runtime {
-    modules: "${modules}"
+    docker: "${docker}"
     memory: "16GB"
     cpu: 4
   }
@@ -306,7 +307,7 @@ task ApplyBaseRecalibrator {
   File ref_dict
   File ref_fasta
   File ref_fasta_index
-  String modules
+  String docker
   command {
   set -eo pipefail
 
@@ -336,7 +337,7 @@ task ApplyBaseRecalibrator {
 
   }
   runtime {
-    modules: "${modules}"
+    docker: "${docker}"
     memory: "33GB"
     cpu: 6
     partition: "largenode"
@@ -359,7 +360,7 @@ task HaplotypeCaller {
   File ref_fasta
   File ref_fasta_index
   File dbSNP_vcf
-  String modules
+  String docker
 
   command {
     set -eo pipefail
@@ -374,7 +375,7 @@ task HaplotypeCaller {
     }
 
   runtime {
-    modules: "${modules}"
+    docker: "${docker}"
     memory: "30GB"
     cpu: 4
   }
@@ -394,7 +395,7 @@ task annovar {
   String annovar_protocols
   String annovar_operation
   String annovarDIR
-  String modules
+  String docker
   String base_vcf_name = basename(input_vcf, ".vcf")
   
   command {
@@ -410,7 +411,7 @@ task annovar {
   }
 
   runtime {
-    modules: "${modules}"
+    docker: "${docker}"
   }
 
   output {
