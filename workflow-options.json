@@ -5,5 +5,5 @@
         "maxRetries": 1
         },
     "write_to_cache": true,
-    "read_from_cache": true
+    "read_from_cache": false
 }
